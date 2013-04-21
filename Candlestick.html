@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>CandleStick Example</title>
+<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="http://www.flotcharts.org/excanvas.min.js""></script><![endif]-->
+<script language="javascript" type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script language="javascript" text="text/javascript" src="http://www.flotcharts.org/flot/jquery.flot.js"></script>
+<script language="javascript" text="text/javascript" src="http://www.flotcharts.org/flot/jquery.flot.time.js"></script>
+<script language="javascript" text="text/javascript" src="./flot.candle.js"></script>
+</head>
+<body>
+<div id="placeholder" style="width:600px;height:300px;"></div>
+<script id="source" language="javascript" type="text/javascript">
+
+var candleDt;
+/* = [
+    [Date.UTC(2010, 1, 1), 50, 52, 49, 52],
+    [Date.UTC(2010, 1, 2), 52, 53, 51, 53],
+    [Date.UTC(2010, 1, 3), 53, 52, 51, 54],
+    [Date.UTC(2010, 1, 4), 52, 49, 47, 53],
+    [Date.UTC(2010, 1, 5), 49, 44, 42, 48],
+    [Date.UTC(2010, 1, 8), 44, 55, 45, 55],
+    [Date.UTC(2010, 1, 9), 55, 57, 45, 58]
+];*/
+var now = new Date();
+var ticks = now.getTime();
+//https://data.mtgox.com/api/1/BTCUSD/trades?raw
+$.getJSON('https://data.mtgox.com/api/1/BTCEUR/trades?since=' + (ticks - 60 * 60), function(data) {
+    candleDt = [];
+    var trades = data.return;
+    var dt;
+    var trade;
+    var open = 0;
+    var low = 0;
+    var high = 0;
+    var close = 0;
+    var curPrice;
+    var prevFloor = 0;
+    var curFloor;
+    var newCandle = true;
+    var prevDt;
+    var prevClose;
+    for(var idx in trades){
+        trade = trades[idx];
+        dt = new Date(trade.date); 
+        curPrice = parseFloat(trade.price);  
+        if (newCandle){
+            open = curPrice;
+            low = curPrice;
+            high = curPrice;
+            newCandle = false;
+            prevFloor = Math.floor(dt.getMinutes());
+        } else {
+            if (curPrice > high){
+                high = curPrice;
+            } else if (curPrice < low){
+                low = curPrice;
+            }
+            curFloor = Math.floor(dt.getMinutes());
+            if (curFloor != prevFloor){
+                while((curFloor - prevFloor) % 60 > 1){
+                    prevDt = new Date(prevDt.getTime() + 1*60001);
+                    prevDt.setSeconds(0);
+                    candleDt.push([prevDt, prevClose, prevClose, prevClose, prevClose]);
+                    prevFloor +=1;
+                }
+                close = curPrice;    
+                dt.setSeconds(0);
+                candleDt.push([dt, open, close, low, high]);
+                newCandle = true;
+            }
+        }  
+        prevFloor = curFloor;
+        prevDt = dt;
+        prevClose = close;
+        //candleDt.push([new Date(dt.getTime() + 1*60001).setSeconds(0), 0,0,0,0]);
+    }
+    
+    draw();
+});
+
+
+var options = {
+    series: {
+        candle: true,
+        lines: false
+    },
+    xaxis: {
+        mode: "time",
+    },
+    grid: {
+        hoverable: true,
+        clickable: true
+    }
+};
+
+function draw(){
+    $.plot($("#placeholder"),[{data:candleDt,candle:true}],options);
+}
+</script>
+</body>
+</html>
