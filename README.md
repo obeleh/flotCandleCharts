@@ -9,7 +9,19 @@ http://htmlpreview.github.io/?https://github.com/obeleh/flotCandleCharts/blob/ma
 
 Expected data format:
 
-    [dt, open, close, low, high]
+    [[dt, open, close, low, high], ...    ];
+
+Options:
+
+    var options = {
+        series: {
+            candle: true,
+            lines: false        //Somehow it draws lines if you dont disable this. Should investigate and fix this ;)
+        },
+        xaxis: {
+            mode: "time",
+        }
+    };
 
 Make sure that the prices are correctly aggregated and put into evenly sized "buckets".
 There's an example on how to convert trading data into chart data in CandleStick.html.
