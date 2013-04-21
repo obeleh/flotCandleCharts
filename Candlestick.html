@@ -14,6 +14,7 @@
 <script id="source" language="javascript" type="text/javascript">
 
 var candleDt;
+//Example data in case the ajax call might not work
 /* = [
     [Date.UTC(2010, 1, 1), 50, 52, 49, 52],
     [Date.UTC(2010, 1, 2), 52, 53, 51, 53],
@@ -23,9 +24,10 @@ var candleDt;
     [Date.UTC(2010, 1, 8), 44, 55, 45, 55],
     [Date.UTC(2010, 1, 9), 55, 57, 45, 58]
 ];*/
+
 var now = new Date();
 var ticks = now.getTime();
-//https://data.mtgox.com/api/1/BTCUSD/trades?raw
+// Apparently it gets old data but that doesn't matter for the demo
 $.getJSON('https://data.mtgox.com/api/1/BTCEUR/trades?since=' + (ticks - 60 * 60), function(data) {
     candleDt = [];
     var trades = data.return;
@@ -44,27 +46,34 @@ $.getJSON('https://data.mtgox.com/api/1/BTCEUR/trades?since=' + (ticks - 60 * 60
     for(var idx in trades){
         trade = trades[idx];
         dt = new Date(trade.date); 
-        curPrice = parseFloat(trade.price);  
+        curPrice = parseFloat(trade.price);
         if (newCandle){
+            //Initialise a new candle
             open = curPrice;
             low = curPrice;
             high = curPrice;
             newCandle = false;
             prevFloor = Math.floor(dt.getMinutes());
         } else {
+            //Determine peak/bottom
             if (curPrice > high){
                 high = curPrice;
             } else if (curPrice < low){
                 low = curPrice;
             }
+            //1 Candle per minute
             curFloor = Math.floor(dt.getMinutes());
             if (curFloor != prevFloor){
+                //We've got a new candle
                 while((curFloor - prevFloor) % 60 > 1){
+                    //Compensate for gaps in the trade data
                     prevDt = new Date(prevDt.getTime() + 1*60001);
                     prevDt.setSeconds(0);
+                    //push empty candle
                     candleDt.push([prevDt, prevClose, prevClose, prevClose, prevClose]);
                     prevFloor +=1;
                 }
+                //Add newest candle
                 close = curPrice;    
                 dt.setSeconds(0);
                 candleDt.push([dt, open, close, low, high]);
@@ -84,7 +93,7 @@ $.getJSON('https://data.mtgox.com/api/1/BTCEUR/trades?since=' + (ticks - 60 * 60
 var options = {
     series: {
         candle: true,
-        lines: false
+        lines: false        //Somehow it draws lines if you dont disable this. Should investigate and fix this ;)
     },
     xaxis: {
         mode: "time",

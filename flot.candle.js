@@ -1,5 +1,3 @@
-
-
 (function ($) {
     var options = {
         series: { candle: null } // or number/string
@@ -48,6 +46,7 @@
             ctx.lineWidth = 1;
             x = offset.left + serie.xaxis.p2c(dt);
             
+            //body
             ctx.fillRect (x, y, width, height);
             ctx.strokeRect(x, y, width, height);
             
