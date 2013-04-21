@@ -1,0 +1,157 @@
+<html>
+      <head>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+        <script src="https://socketio.mtgox.com/socket.io/socket.io.js"></script>
+        <script src="http://people.iola.dk/olau/flot/jquery.flot.js"></script>
+        <script>
+            //?Currency=USD
+            var askLine = [];
+            var bidLine = [];
+            var buyData = {};
+            var sellData = {};
+            var maxAsk;
+            var minBid;
+                        
+            function display(name, data){
+                $("#myData").append($("<div/><br>").text(name + ": " + JSON.stringify(data, null, "\t")));
+            }
+            function onDepth(data){
+                var depth = data.depth;
+                //
+                var toUnshift = [];
+                if (depth.type_str == "bid"){
+                    var bid;
+                    var found = false;
+                    if (depth.price > minBid){
+                        console.log(JSON.stringify(depth));
+                        for(var idx in bidLine){
+                            bid = bidLine[idx];
+                            if (bid[0] <= parseFloat(depth.price)){
+                                found = true;
+                                bid[1] += parseFloat(depth.volume);
+                                if (bid[1] <= 0){
+                                    bidLine.splice(idx,idx);
+                                }
+                            } 
+                            if(idx == "0" && bid[0] < parseFloat(depth.price)){  
+                                toUnshift.push([depth.price, depth.volume]);
+                            }
+                        }
+                        if (toUnshift.length > 0){
+                            console.log("bidShift" + toUnshift);
+                            bidLine.unshift(toUnshift);
+                        }
+                    }
+                } else if (depth.type_str == "ask"){
+                    var ask;
+                    var found = false;
+                    if (depth.price < maxAsk){
+                        console.log(JSON.stringify(depth));
+                        for(var idx in askLine){
+                            ask = askLine[idx]; 
+                            if(ask[0] >= parseFloat(depth.price)){  
+                                ask[1] += parseFloat(depth.volume);
+                                if (ask[1] <= 0){
+                                    askLine.splice(idx,idx);
+                                }
+                            } 
+                            if(idx == "0" && ask[0] > parseFloat(depth.price)){  
+                                toUnshift.push([depth.price, depth.volume]);
+                            }
+                        }
+                        if (toUnshift.length > 0){
+                            console.log("askShift" + toUnshift);
+                            askLine.unshift(toUnshift);
+                        }
+                    }
+                }
+                draw();
+            }
+            function onTicker(data){
+                //display("ticker", data);
+            }
+            function onTradeBTC(data){
+                display("tradeBTC", data);
+            }
+            var funs = { 
+                "depth.BTCUSD": onDepth,
+                "ticker.BTCUSD": onTicker,
+                "trade.BTC": onTradeBTC,
+            }
+            function onConnect(data){
+                display("connected");
+            }
+            function onDisconnect(data){
+                display("disconnect", data);
+            }
+            function onError(data){
+                display("error", data);
+            }
+            function onMessage(data) {
+                
+                if (funs[data.channel_name]){
+                    funs[data.channel_name](data);
+                } else {
+                    $("#myData").append($("<div>NEWNEWNEW:" + data.channel_name +  ":" + JSON.stringify(data) + "</div>"));
+                }
+            }; 
+            function onloadScript(){
+                var conn = io.connect('https://socketio.mtgox.com/mtgox');
+                conn.on('connect',    onConnect);
+                conn.on('disconnect', onDisconnect);
+                conn.on('error',      onError);
+                conn.on('message',    onMessage);
+                draw();
+                getDepthData();
+            }
+            function plotDataFromTo(data, minBid, maxAsk){
+                var asks = data.asks;
+                var ask;
+                var sum = 0;
+                for(var idx in asks){
+                    ask = asks[idx];
+                    if (ask.price < maxAsk){  
+                        sum += ask.amount;
+                        askLine.push([ask.price, sum]);
+                    }
+                }
+                var bids = data.bids;
+                var bid;
+                sum = 0;    
+                for(var idx in bids){
+                    bid = bids[bids.length - 1 - idx];
+                    if (bid.price > minBid){           
+                        sum += bid.amount;
+                        bidLine.push([bid.price, sum]);
+                    }
+                }
+                draw();
+            }
+            function getDepthData(){
+                var now = new Date();
+                var ticks = now.getTime();
+                $.ajax({
+                  dataType: "json",
+                  url: 'http://data.mtgox.com/api/1/BTCUSD/depth/fetch',
+                  success: function(data) {
+                    //$.getJSON('https://data.mtgox.com/api/1/BTCUSD/depth/full', function(data) {
+                        depthData = data;
+                        display("stamp", Date(data.return.stamp));
+                        minBid = parseFloat(data.return.filter_min_price.value) * 1.04;
+                        maxAsk = parseFloat(data.return.filter_max_price.value) * 0.96;      
+                        plotDataFromTo(data.return, minBid, maxAsk);                         
+                    }
+                });
+            }
+            
+            function draw(){
+		        //var d2 = [[0, 3], [4, 8], [8, 5], [9, 13]];
+		        $.plot("#placeholder", [ bidLine, askLine ]);
+            }
+        </script>
+        </head>
+      <body onload="onloadScript();">
+      <div id="placeholder" style="width:1500px;height:700px;padding: 0px; position: relative;"></div>
+        <div id="myData"></div>
+      </body>
+</html>
